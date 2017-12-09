@@ -1,0 +1,174 @@
+/**
+ * JavaCC template file created by SF JavaCC plugin 1.5.28+ wizard for JavaCC 1.5.0+
+ */
+options
+{
+  IGNORE_CASE = true;
+  STATIC = false;
+}
+
+PARSER_BEGIN(HtmlParser)
+package parser;
+import java.util.ArrayList;
+import java.io.*;
+
+public class HtmlParser
+{
+  public static void main(String args []) throws ParseException, FileNotFoundException
+  {
+    if (args.length == 0)
+    {
+      System.out.println("HELP: Need an HTML file as argument");
+      return;
+    }
+    File file = new File(args [0]);
+    if (!file.exists() && !file.canRead())
+    {
+      System.out.println("Error: not a file");
+      return;
+    }
+    FileInputStream is = new FileInputStream(file);
+    ArrayList < String > res = new ArrayList < String > ();
+    HtmlParser parser = new HtmlParser(is);
+    System.out.println("Reading from file...");
+    try
+    {
+      System.out.println("OK.");
+      //res.add("");
+      parser.tag();
+      parser.end_tag();
+      /*switch (HtmlParser.one_line())
+        {
+          case 0 : 
+          System.out.println("OK.");
+          break;
+          case 1 : 
+          System.out.println("Goodbye.");
+          break;
+          default : 
+          break;
+        }*/
+    }
+    catch (Exception e)
+    {
+      System.out.println("NOK.");
+      System.out.println(e.getMessage());
+      //HtmlParser.ReInit(System.in);
+    }
+    catch (Error e)
+    {
+      System.out.println("Oops.");
+      System.out.println(e.getMessage());
+      return;
+    }
+  }
+}
+
+PARSER_END(HtmlParser)
+
+SKIP :
+{
+  <
+    (
+      " "
+    | "\t"
+    | "\n"
+    | "\r"
+    )+ >
+| < "<!" (~[ ">" ])* >
+}
+
+<* >
+TOKEN :
+{
+  < #ALPHA_CHAR : [ "a"-"z", "A"-"Z" ] >
+| < #NUM_CHAR : [ "0"-"9" ] >
+| < #ALPHANUM_CHAR : [ "a"-"z", "A"-"Z", "0"-"9" ] >
+| < #IDENTIFIER_CHAR : [ "a"-"z", "A"-"Z", "0"-"9", "_", "-", ".", ":" ] >
+| < #IDENTIFIER : < ALPHA_CHAR > (< IDENTIFIER_CHAR >)* >
+| < #QUOTED_STRING_NB :
+    (
+      "'" (~[ "'", "\r", "\n" ])* "'"
+    )
+  |
+    (
+      "\"" (~[ "\"", "\r", "\n" ])* "\""
+    ) >
+| < #QUOTED_STRING :
+    (
+      "'" (~[ "'" ])* "'"
+    )
+  |
+    (
+      "\"" (~[ "\"" ])* "\""
+    ) >
+| < #WHITESPACE :
+    (
+      " "
+    | "\t"
+    | "\n"
+    | "\r"
+    ) >
+| < #NEWLINE :
+    (
+      "\r\n"
+    | "\r"
+    | "\n"
+    ) >
+| < #QUOTE :
+    (
+      "'"
+    | "\""
+    ) >
+}
+
+< DEFAULT >
+TOKEN :
+{
+  < TAG_START : 		"<" > 	: LexStartTag
+| < ENDTAG_START : 	"</" > 	: LexStartTag
+}
+
+< LexStartTag >
+TOKEN :
+{
+  < TAG_NAME : < IDENTIFIER > > 	: LexInTag
+}
+
+< LexInTag >
+TOKEN :
+{
+  < TAG_END : 		">" > 	: DEFAULT
+| < TAG_SLASHEND : 	"/>" > 	: DEFAULT
+}
+
+void tag() :
+{
+  Token t;
+}
+{
+  < TAG_START > t = < TAG_NAME > < TAG_END >
+  {
+    System.out.println("tag");
+  }
+}
+
+void end_tag() :
+{
+  Token t;
+}
+{
+  < ENDTAG_START > t = < TAG_NAME > < TAG_END >
+  {
+    System.out.println("endtag");
+  }
+}
+
+void read_line() :
+{
+}
+{
+  {
+    System.out.println("read_line");
+  }
+}
