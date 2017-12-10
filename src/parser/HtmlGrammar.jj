@@ -25,10 +25,8 @@ public class HtmlParser
         for (; tt != null; tt = tt.next) 
         sb.append(tt.image);
       }
-      ;
       sb.append(t.image);
     }
-    ;
     return sb.toString();
   }
 
@@ -48,15 +46,18 @@ public class HtmlParser
     ArrayList < String > res = new ArrayList < String > ();
     try
     {
-      FileReader is = new FileReader(file);
-      BufferedReader br = new BufferedReader(is);
+      FileInputStream is = new FileInputStream(file);
+      //FileReader is = new FileReader(file);
+      //BufferedReader br = new BufferedReader(is);
       HtmlParser parser = new HtmlParser(is);
       System.out.println("Reading from file...");
-      for (String line; (line = br.readLine()) != null;)
+      while (true)
+      //while (is.read() != -1)
+      //for (String line; (line = br.readLine()) != null;)
       {
-        System.out.println("OK ->" + line);
+        //System.out.println("OK ->  " + is.available());
         res.add("");
-        parser.tag();
+        parser.read_line();
         //parser.end_tag();
       }
     }
@@ -87,6 +88,9 @@ SKIP :
     | "\r"
     )+ >
 | < "<!" (~[ ">" ])* >
+  {
+    System.err.println("Skipping");
+  }
 }
 
 <* >
@@ -181,11 +185,22 @@ TOKEN :
   | (~[ ">", "\"", "'", " ", "\t", "\n", "\r" ])+ > : LexInTag
 }
 
+< LexBlock >
+TOKEN:
+{
+  < BLOCK : "<" > : DEFAULT
+| < BLOCK_JUMP : ( ~["<"] )+ >
+}
+
 String attr() :
 {
+  Token t;
 }
 {
-  (< ATTR_NAME > < ATTR_EQ > < ATTR_VAL >) *
+  t = < ATTR_NAME > [ < ATTR_EQ > < ATTR_VAL > ]
+  {
+    return (t.image);
+  }
 }
 
 String tag() :
@@ -196,8 +211,10 @@ String tag() :
 {
   try
   {
-    < TAG_START > t = < TAG_NAME > attr() < TAG_END >
-    //{ System.out.println("BITE"); }
+    < TAG_START > t = < TAG_NAME > (attr())* (< TAG_END > | < TAG_SLASHEND >)
+    {
+      System.out.println("BITE");
+    }
     {
       System.out.println("tag : " + t.image);
       return (t.image);
@@ -207,6 +224,7 @@ String tag() :
   {
     token_source.SwitchTo(DEFAULT);
     String s = getTokenText(firstToken, getNextToken());
+    System.out.println("CUL ->   " + s);
     return s;
   }
 }
@@ -233,10 +251,22 @@ String end_tag() :
   }
 }
 
-void read_line() :
+void block():
 {
 }
 {
+  < BLOCK >
+  {
+    System.out.println("block");
+  }
+}
+
+void read_line() :
+{
+  String s;
+}
+{
+  s=tag() | block() | end_tag()
   {
     System.out.println("read_line");
   }
