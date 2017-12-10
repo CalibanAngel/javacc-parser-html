@@ -1,0 +1,452 @@
+options
+{
+  static = true;
+  LOOKAHEAD = 2;
+  FORCE_LA_CHECK = true;
+}
+
+PARSER_BEGIN(HtmlParser)
+package parser;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+public class HtmlParser
+{
+  public static Map<String, Integer> hm;
+  
+  public static void main(String args []) throws ParseException
+  {
+    try {
+   		HtmlParser parser = new HtmlParser(System.in);
+   		hm = new HashMap<String, Integer>();
+   		
+    	parser.html();
+
+		System.out.println("Parsing Complete!");
+    	Set<Entry<String, Integer>> setHm = hm.entrySet();
+    	Iterator<Entry<String, Integer>> it = setHm.iterator();
+    	while(it.hasNext()){
+       		Entry<String, Integer> e = it.next();
+       		System.out.println("<" +e.getKey() + "> " + e.getValue());
+    	}
+  	} catch (TokenMgrError e) {
+  	  System.out.println("TokenMgrError: " + e.getMessage());
+  	} catch (ParseException e) {
+  	  System.out.println("ParseError: " + e.getMessage());
+  	} catch (Exception e) {
+  	  System.out.println("Error: " + e.getMessage());
+  	}
+  }
+
+
+  public static void incrementTag(String tag) {
+    int count = hm.containsKey(tag) ? hm.get(tag) : 0;
+	hm.put(tag, count + 1);
+  }
+}
+
+PARSER_END(HtmlParser)
+
+SKIP :
+{
+  <
+    (
+      " "
+    | "\t"
+    | "\n"
+    | "\r"
+    )+ >
+| < "<!" (~[ ">" ])* >
+  {
+    System.err.println("Skipping");
+  }
+}
+
+<* >
+TOKEN :
+{
+  < #NEWLINE :
+    (
+      "\r\n"
+    | "\r"
+    | "\n"
+    ) >
+}
+
+< DEFAULT >
+TOKEN :
+{
+  < EOL :
+    (
+      " "
+    | "\t"
+    )*
+    < NEWLINE > >
+| < TAG_START :		"<" > 	: TAG
+| < ENDTAG_START : 	"</" > 	: TAG
+| < DATA:	( ~["<"] )+	>
+}
+
+< TAG > TOKEN [IGNORE_CASE]:
+{
+  < A: "a" > : ATTRIB
+| < P: "p" > : ATTRIB
+| < B: "b" > : ATTRIB
+| < U: "u" > : ATTRIB
+| < I: "i" > : ATTRIB
+| < BIG: "big" > : ATTRIB
+| < SMALL: "small" > : ATTRIB
+| < SUB: "sub" > : ATTRIB
+| < SUP: "sup" > : ATTRIB
+| < BR: "br" > : ATTRIB
+| < IMG: "img" > : ATTRIB
+| < BODY: "body" > : ATTRIB
+| < HTML: "html" > : ATTRIB
+| < HEAD: "head" > : ATTRIB
+| < LINK: "link" > : ATTRIB
+| < DIV: "div" >: ATTRIB
+| < FORM: "form" > : ATTRIB
+| < TABLE: "table" > : ATTRIB
+| < TR: "tr" > : ATTRIB
+| < TH: "th" > : ATTRIB
+| < TD: "td" > : ATTRIB
+| < SPAN: "span" > : ATTRIB
+| < SVG: "svg" > : ATTRIB
+| < STYLE: "style" > : ATTRIB
+| < UL: "ul" > : ATTRIB
+| < LI: "li" > : ATTRIB
+| < INPUT: "input" > : ATTRIB
+| < POLYGON: "polygon" > : SVGATTRIB
+}
+
+< ATTRIB > TOKEN:
+{
+  < TAG_END: ">" > : DEFAULT
+| < TAG_END_JUMP: ( ~[">"])+ >
+}
+
+< SVGATTRIB > TOKEN:
+{
+  < TAG_SLASHEND: "/>" > : DEFAULT
+| < TAG_SLASHEND_JUMP: ( ~["/"])+ >
+}
+
+
+////////////////////////
+//// HTML PARSER   /////
+////////////////////////
+void html(): { Token t; }
+{
+  [ "<!DOCTYPE html>" ]
+  <TAG_START> t=<HTML> <TAG_END>
+  	[ head() ]
+  	body()
+  <ENDTAG_START> <HTML> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+////////////////////////
+//// HEADER PARSER  ////
+////////////////////////
+void head(): { Token t; }
+{
+  <TAG_START> t=<HEAD> <TAG_END>
+	head_content()
+  <ENDTAG_START> <HEAD> <TAG_END>
+  { incrementTag(t.image.toUpperCase()); }
+}
+
+void head_content(): { }
+{
+  (
+    (	style()
+	|	link()
+	)
+  )*
+}
+
+void link() : { Token t; }
+{
+  <TAG_START> t=<LINK> [ <TAG_END_JUMP> ] <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void style() : { Token t; }
+{
+  <TAG_START> t=<STYLE> <TAG_END>
+	< DATA >
+  <ENDTAG_START> <STYLE> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+/////////////////////
+//// BODY PARSER ////
+/////////////////////
+void body(): { Token t; }
+{
+  <TAG_START> t=<BODY> <TAG_END>
+	(body_content())*
+  <ENDTAG_START> <BODY> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void body_content(): { }
+{
+	(	div()
+	|	table()
+	|	form()
+	|	svg()
+	|	br()
+	| 	p()
+	|	big()
+	|	small()
+	|	u()
+	|	i()
+	|	sup()
+	|	sub()
+	|	img()
+	|	span()
+	| 	b()
+	| 	ul()
+	| 	< DATA >
+	)
+}
+
+void ul() : { Token t; }
+{
+  <TAG_START> t=<UL> [ <TAG_END_JUMP> ] <TAG_END>
+	(
+	  li()
+	)*
+  <ENDTAG_START> <UL> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void li() : { Token t; }
+{
+  <TAG_START> t=<LI> [ <TAG_END_JUMP> ] <TAG_END>
+	< DATA >
+  <ENDTAG_START> <LI> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void div(): { Token t; }
+{
+  <TAG_START> t=<DIV> [ <TAG_END_JUMP> ] <TAG_END>
+	(body_content())*
+  <ENDTAG_START> <DIV> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void table(): { Token t; }
+{
+  <TAG_START> t=<TABLE> [ <TAG_END_JUMP> ] <TAG_END>
+	 ( tr() )+
+  <ENDTAG_START> <TABLE> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void tr() : { Token t; }
+{
+  <TAG_START> t=<TR> [ <TAG_END_JUMP> ] <TAG_END>
+	(
+	  (th() | td())
+	)*
+  [ <ENDTAG_START> <TR> <TAG_END> ]
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void th() : { Token t; }
+{
+  <TAG_START> t=<TH> [ <TAG_END_JUMP> ] <TAG_END>
+	(body_content())*
+  [ <ENDTAG_START> <TH> <TAG_END> ]
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void td() : { Token t; }
+{
+  <TAG_START> t=<TD> <TAG_END>
+	(body_content())*
+  [ <ENDTAG_START> <TD> <TAG_END> ]
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void form(): { Token t; }
+{
+  <TAG_START> t=<FORM> [ <TAG_END_JUMP> ] <TAG_END>
+	(
+	  (
+	    input()
+	  | body_content()
+	  )
+    )*
+  <ENDTAG_START> <FORM> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void input(): { Token t; }
+{
+  <TAG_START> t=<INPUT> [ <TAG_END_JUMP> ] <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void svgPolygon(): { Token t; }
+{
+  <TAG_START> t=<POLYGON> [ <TAG_SLASHEND_JUMP> ] <TAG_SLASHEND>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void svg(): { Token t; }
+{
+  <TAG_START> t=<SVG> [ <TAG_END_JUMP> ] <TAG_END>
+	(
+	  (
+	    svgPolygon()
+	  | <DATA>
+	  )
+	)*
+  <ENDTAG_START> <SVG> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void p(): { Token t; }
+{
+  <TAG_START> t=<P> [ <TAG_END_JUMP> ] <TAG_END>
+	(body_content())*
+  <ENDTAG_START> <P> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void br(): { Token t; }
+{
+  <TAG_START> t=<BR> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void img(): { Token t; }
+{
+  <TAG_START> t=<IMG> [ <TAG_END_JUMP> ] <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void b(): { Token t; }
+{
+  <TAG_START> t=<B> <TAG_END>
+  	<DATA>
+  <ENDTAG_START> <B> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void big(): { Token t; }
+{
+  <TAG_START> t=<BIG> <TAG_END>
+  	<DATA>
+  <ENDTAG_START> <BIG> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void small(): { Token t; }
+{
+  <TAG_START> t=<SMALL> <TAG_END>
+  	<DATA>
+  <ENDTAG_START> <SMALL> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void u(): { Token t; }
+{
+  <TAG_START> t=<U> <TAG_END>
+  	<DATA>
+  <ENDTAG_START> <U> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void i(): { Token t; }
+{
+  <TAG_START> t=<I> <TAG_END>
+  	<DATA>
+  <ENDTAG_START> <I> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void sup(): { Token t; }
+{
+  <TAG_START> t=<SUP> <TAG_END>
+  	<DATA>
+  <ENDTAG_START> <SUP> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void sub(): { Token t; }
+{
+  <TAG_START> t=<SUB> <TAG_END>
+  	<DATA>
+  <ENDTAG_START> <SUB> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}
+
+void span(): { Token t; }
+{
+  <TAG_START> t=<SPAN> [ <TAG_END_JUMP> ] <TAG_END>
+  	< DATA >
+  <ENDTAG_START> <SPAN> <TAG_END>
+  {
+    incrementTag(t.image.toUpperCase());
+  }
+}

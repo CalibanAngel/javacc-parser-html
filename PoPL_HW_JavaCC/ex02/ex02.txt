@@ -1,0 +1,6 @@
+<DIV> 4
+<HEAD> 1
+<IMG> 4
+<LINK> 1
+<HTML> 1
+<BODY> 1
