@@ -188,7 +188,7 @@ TOKEN :
 < LexBlock >
 TOKEN:
 {
-  < BLOCK : "<" > : DEFAULT
+  < BLOCK_END : "<" > : DEFAULT
 | < BLOCK_JUMP : ( ~["<"] )+ >
 }
 
@@ -213,9 +213,6 @@ String tag() :
   {
     < TAG_START > t = < TAG_NAME > (attr())* (< TAG_END > | < TAG_SLASHEND >)
     {
-      System.out.println("BITE");
-    }
-    {
       System.out.println("tag : " + t.image);
       return (t.image);
     }
@@ -237,7 +234,7 @@ String end_tag() :
 {
   try
   {
-    < ENDTAG_START > t = < TAG_NAME > < TAG_END >
+    < ENDTAG_START > t = < TAG_NAME > < TAG_END > (< EOL >)*
     {
       System.out.println("endtag : " + t.image);
       return (t.image);
@@ -255,7 +252,7 @@ void block():
 {
 }
 {
-  < BLOCK >
+  < BLOCK_END > | < BLOCK_JUMP >
   {
     System.out.println("block");
   }
@@ -266,7 +263,7 @@ void read_line() :
   String s;
 }
 {
-  s=tag() | block() | end_tag()
+  s=tag() (block())* (< EOL >)* (end_tag())*
   {
     System.out.println("read_line");
   }
